@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 usage() {
-  echo "Usage: $0 [-i input_files] [-o output_format] [-s sort_by] [-f ip_filter] [-d date_filter] [-m method_filter] [-c code_filter] [-p pattern]"
+  echo "Usage: $0 [-i input_files] [-o output_format] [-s sort_by] [-f ip_filter] [-d date_filter] [-m method_filter] [-c code_filter] [-p pattern] [-t threshold]"
   echo "  -i input_files: Comma-separated list of input files to process"
   echo "  -o output_format: Output format (plain, csv, json)"
   echo "  -s sort_by: Sort output by a column (date, ip, method, size, status)"
@@ -10,7 +10,8 @@ usage() {
   echo "  -m method_filter: Filter records by HTTP method (e.g., GET, POST)"
   echo "  -c code_filter: Filter records by response code (e.g., 200, 404)"
   echo "  -p pattern: Search for specific string or pattern in the log file"
-  echo "Example: $0 -i input.log -o plain -f 192.168.1.1 -d '01/Jan/2021,31/Dec/2021' -m GET -c 200"
+  echo "  -t threshold: Display only results meeting or exceeding the threshold (response size)"
+  echo "Example: $0 -i input.log -o plain -f 192.168.1.1 -d '01/Jan/2021,31/Dec/2021' -m GET -c 200 -p 'example.com' -t 1024"
 }
 
 # Parse command-line arguments
@@ -24,6 +25,7 @@ while getopts "i:o:s:f:d:m:c:p:" opt; do
     m) method_filter="$OPTARG";;
     c) code_filter="$OPTARG";;
     p) pattern="$OPTARG";;
+    t) threshold="$OPTARG";;
     \?) usage; exit 1;;
   esac
 done
@@ -108,6 +110,13 @@ function parse_file {
     # Apply pattern
     if [[ ! -z "$pattern" ]]; then
       if ! echo "$line" | grep -q "$pattern"; then
+        continue
+      fi
+    fi
+
+    # Apply threshold
+    if [[ ! -z "$threshold" ]]; then
+      if (( "${fields[8]}" < threshold )); then
         continue
       fi
     fi
