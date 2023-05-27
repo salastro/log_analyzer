@@ -17,7 +17,7 @@ while getopts "i:o:s:f:d:m:c:" opt; do
   case $opt in
     i) input_files+=("$OPTARG");;
     o) output_format="$OPTARG";;
-    s) sort_by="$OPTARG";;
+    s) sort_by="${OPTARG:-date}";;
     f) ip_filter="$OPTARG";;
     d) date_filter="$OPTARG";;
     m) method_filter="$OPTARG";;
@@ -36,6 +36,32 @@ fi
 function parse_file {
     local file="$1"
     local fields=()
+
+    case $sort_by in
+        requests)
+            sort_command="sort -k1,1"
+            ;;
+        data)
+            sort_command="sort -k10,10n"
+            ;;
+        ip)
+            sort_command="sort -n -t. -k1,1 -k2,2 -k3,3 -k4,4"
+            ;;
+        date)
+            sort_command="sort -k4,4"
+            ;;
+        method)
+            sort_command="sort -k6,6"
+            ;;
+        status)
+            sort_command="sort -k9,9n"
+            ;;
+        *)
+            sort_command="sort"
+            ;;
+    esac
+
+    local file=$(cat "$file" | $sort_command)
 
     while IFS= read -r line
     do
