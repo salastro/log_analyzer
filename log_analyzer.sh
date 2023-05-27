@@ -9,6 +9,7 @@ usage() {
   echo "  -d date_filter: Filter records by date range, format: start_date,end_date (e.g., '01/Jan/2021,31/Dec/2021')"
   echo "  -m method_filter: Filter records by HTTP method (e.g., GET, POST)"
   echo "  -c code_filter: Filter records by response code (e.g., 200, 404)"
+  echo "  -p pattern: Search for specific string or pattern in the log file"
   echo "Example: $0 -i input.log -o plain -f 192.168.1.1 -d '01/Jan/2021,31/Dec/2021' -m GET -c 200"
 }
 
@@ -35,101 +36,101 @@ fi
 
 # Parse combined log format and return array of fields
 function parse_file {
-    local fields=()
+  local fields=()
 
-    case $sort_by in
-        requests)
-            sort_command="sort -k1,1"
-            ;;
-        data)
-            sort_command="sort -k10,10n"
-            ;;
-        ip)
-            sort_command="sort -n -t. -k1,1 -k2,2 -k3,3 -k4,4"
-            ;;
-        date)
-            sort_command="sort -k4,4"
-            ;;
-        method)
-            sort_command="sort -k6,6"
-            ;;
-        status)
-            sort_command="sort -k9,9n"
-            ;;
-        *)
-            sort_command="sort"
-            ;;
-    esac
+  case $sort_by in
+    requests)
+      sort_command="sort -k1,1"
+      ;;
+    data)
+      sort_command="sort -k10,10n"
+      ;;
+    ip)
+      sort_command="sort -n -t. -k1,1 -k2,2 -k3,3 -k4,4"
+      ;;
+    date)
+      sort_command="sort -k4,4"
+      ;;
+    method)
+      sort_command="sort -k6,6"
+      ;;
+    status)
+      sort_command="sort -k9,9n"
+      ;;
+    *)
+      sort_command="sort"
+      ;;
+  esac
 
-    local sorted_file=$(cat "$file" | $sort_command)
-    cat "$sorted_file" > "/tmp/$file.sorted"
-    local file="/tmp/$file.sorted"
+  local sorted_file=$(cat "$file" | $sort_command)
+  cat "$sorted_file" > "/tmp/$file.sorted"
+  local file="/tmp/$file.sorted"
 
-    while IFS= read -r line
-    do
-        IFS=' ' read -ra fields <<< "$line"
-        local ip="${fields[0]}"
-        local date="${fields[3]} ${fields[4]}"
-        local method="${fields[5]}"
-        local url="${fields[6]}"
-        local status="${fields[8]}"
-        local size="${fields[9]}"
-        local referer="${fields[10]}"
-        local agent=""
-        for i in "${fields[@]:11}"; do
-            agent+="$i "
-        done
+  while IFS= read -r line
+  do
+    IFS=' ' read -ra fields <<< "$line"
+    local ip="${fields[0]}"
+    local date="${fields[3]} ${fields[4]}"
+    local method="${fields[5]}"
+    local url="${fields[6]}"
+    local status="${fields[8]}"
+    local size="${fields[9]}"
+    local referer="${fields[10]}"
+    local agent=""
+    for i in "${fields[@]:11}"; do
+      agent+="$i "
+    done
 
-        # Apply filters
-        if [[ ! -z "$ip_filter" && "$ip" != "$ip_filter" ]]; then
-            continue
-        fi
+    # Apply filters
+    if [[ ! -z "$ip_filter" && "$ip" != "$ip_filter" ]]; then
+      continue
+    fi
 
-        if [[ ! -z "$date_filter" ]]; then
-            IFS=',' read -ra date_range <<< "$date_filter"
-            start_date=$(date -d"${date_range[0]}" +%s)
-            end_date=$(date -d"${date_range[1]}" +%s)
-            log_date=$(date -d"${date//[/]}" +%s)
+    if [[ ! -z "$date_filter" ]]; then
+      IFS=',' read -ra date_range <<< "$date_filter"
+      start_date=$(date -d"${date_range[0]}" +%s)
+      end_date=$(date -d"${date_range[1]}" +%s)
+      log_date=$(date -d"${date//[/]}" +%s)
 
-            if (( log_date < start_date || log_date > end_date )); then
-                continue
-            fi
-        fi
+      if (( log_date < start_date || log_date > end_date )); then
+        continue
+      fi
+    fi
 
-        if [[ ! -z "$method_filter" && "$method" != "$method_filter" ]]; then
-            continue
-        fi
+    if [[ ! -z "$method_filter" && "$method" != "$method_filter" ]]; then
+      continue
+    fi
 
-        if [[ ! -z "$code_filter" && "$status" != "$code_filter" ]]; then
-            continue
-        fi
+    if [[ ! -z "$code_filter" && "$status" != "$code_filter" ]]; then
+      continue
+    fi
 
-        # Apply pattern
-        if [[ ! -z "$pattern" ]]; then
-            if ! echo "$line" | grep -q "$pattern"; then
-                continue
-            fi
-        fi
+    # Apply pattern
+    if [[ ! -z "$pattern" ]]; then
+      if ! echo "$line" | grep -q "$pattern"; then
+        continue
+      fi
+    fi
 
-        # Output the filtered results
-        echo "IP: $ip"
-        echo "    Date: $date"
-        echo "    HTTP method: $method"
-        echo "    URL: $url"
-        echo "    Status: $status"
-        echo "    Size: $size"
-        echo "    Referer: $referer"
-        echo "    Agent: $agent"
-    done "$file"
+    # Output the filtered results
+    echo "IP: $ip"
+    echo "    Date: $date"
+    echo "    HTTP method: $method"
+    echo "    URL: $url"
+    echo "    Status: $status"
+    echo "    Size: $size"
+    echo "    Referer: $referer"
+    echo "    Agent: $agent"
+  done "$file"
 }
 
 # Count IPs address and HTTP methods
 function generate_statistics {
-    local file=$1
-    echo "Requests per IP address:"
-    awk '{print $1}' "$file" | sort | uniq -c | sort -nr
-    echo "Requests per HTTP methods:"
-    awk '{print $6}' "$file" | sort | uniq -c | sort -nr
+  local file=$1
+  echo "Requests per IP address:"
+  awk '{print $1}' "$file" | sort | uniq -c | sort -nr
+  echo "Requests per HTTP methods:"
+  awk '{print $6}' "$file" | sort | uniq -c | sort -nr
 }
 
 function summarize_data_transferred {
@@ -149,11 +150,11 @@ function summarize_data_transferred {
 
 # Read files
 for file in "${input_files[@]}"; do
-    # exist if file does not exist
-    if [[ ! -f "$file" ]]; then
-      echo "Error: $file does not exist"
-      exit 1
-    fi
+  # exist if file does not exist
+  if [[ ! -f "$file" ]]; then
+    echo "Error: $file does not exist"
+    exit 1
+  fi
 
     # exist if file is empty
     if [[ ! -s "$file" ]]; then
@@ -168,3 +169,5 @@ for file in "${input_files[@]}"; do
     generate_statistics "$file"
     summarize_data_transferred "$file"
 done
+
+# vim:set et sw=2 ts=2:
