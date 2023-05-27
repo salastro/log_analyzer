@@ -1,0 +1,47 @@
+.\" Manpage for log_analyzer
+.TH LOG_ANALYZER 1 "2023-05-28" "Version 1.0" "log_analyzer User Manual"
+.SH NAME
+log_analyzer \- a script to filter and process web server log files
+.SH SYNOPSIS
+.B log_analyzer
+.RB [ \-i\ input_files ]
+.RB [ \-o\ output_format ]
+.RB [ \-s\ sort_by ]
+.RB [ \-f\ ip_filter ]
+.RB [ \-d\ date_filter ]
+.RB [ \-m\ method_filter ]
+.RB [ \-c\ code_filter ]
+.RB [ \-p\ pattern ]
+.RB [ \-t\ threshold ]
+.SH DESCRIPTION
+log_analyzer is a Bash script that filters and processes web server log files based on various input parameters such as IP address, date range, HTTP method, response code, and a specific string or pattern. It also sorts the filtered results, provides some summary statistics for each log file, and displays only results meeting or exceeding a specified threshold (response size).
+.SH OPTIONS
+.TP
+.B \-i
+Comma-separated list of input files to process
+.TP
+.B \-o
+Output format (plain, csv, json)
+.TP
+.B \-s
+Sort output by a column (date, ip, method, size, status)
+.TP
+.B \-f
+Filter records by IP address
+.TP
+.B \-d
+Filter records by date range, format: start_date,end_date (e.g., '01/Jan/2021,31/Dec/2021')
+.TP
+.B \-m
+Filter records by HTTP method (e.g., GET, POST)
+.TP
+.B \-c
+Filter records by response code (e.g., 200, 404)
+.TP
+.B \-p
+Search for specific string or pattern in the log file
+.TP
+.B \-t
+Display only results meeting or exceeding the threshold (response size)
+.SH EXAMPLES
+.B log_analyzer -i input.log -o plain -f 192.168.1.1 -d '01/Jan/2021,31/Dec/2021' -m GET -c 200 -p 'example.com' -t 1024
