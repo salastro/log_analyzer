@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 usage() {
-  echo "Usage: $0 [-i input_files] [-o output_format] [-s sort_by] [-f ip_filter] [-d date_filter] [-m method_filter] [-c code_filter]"
+  echo "Usage: $0 [-i input_files] [-o output_format] [-s sort_by] [-f ip_filter] [-d date_filter] [-m method_filter] [-c code_filter] [-p pattern]"
   echo "  -i input_files: Comma-separated list of input files to process"
   echo "  -o output_format: Output format (plain, csv, json)"
   echo "  -s sort_by: Sort output by a column (date, ip, method, size, status)"
@@ -13,7 +13,7 @@ usage() {
 }
 
 # Parse command-line arguments
-while getopts "i:o:s:f:d:m:c:" opt; do
+while getopts "i:o:s:f:d:m:c:p:" opt; do
   case $opt in
     i) input_files+=("$OPTARG");;
     o) output_format="$OPTARG";;
@@ -22,6 +22,7 @@ while getopts "i:o:s:f:d:m:c:" opt; do
     d) date_filter="$OPTARG";;
     m) method_filter="$OPTARG";;
     c) code_filter="$OPTARG";;
+    p) pattern="$OPTARG";;
     \?) usage; exit 1;;
   esac
 done
@@ -101,6 +102,13 @@ function parse_file {
 
         if [[ ! -z "$code_filter" && "$status" != "$code_filter" ]]; then
             continue
+        fi
+
+        # Apply pattern
+        if [[ ! -z "$pattern" ]]; then
+            if ! echo "$line" | grep -q "$pattern"; then
+                continue
+            fi
         fi
 
         # Output the filtered results
