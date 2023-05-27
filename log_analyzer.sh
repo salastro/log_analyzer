@@ -34,7 +34,6 @@ fi
 
 # Parse combined log format and return array of fields
 function parse_file {
-    local file="$1"
     local fields=()
 
     case $sort_by in
@@ -61,7 +60,9 @@ function parse_file {
             ;;
     esac
 
-    local file=$(cat "$file" | $sort_command)
+    local sorted_file=$(cat "$file" | $sort_command)
+    cat "$sorted_file" > "/tmp/$file.sorted"
+    local file="/tmp/$file.sorted"
 
     while IFS= read -r line
     do
@@ -111,29 +112,31 @@ function parse_file {
         echo "    Size: $size"
         echo "    Referer: $referer"
         echo "    Agent: $agent"
-    done < "$file"
+    done "$file"
 }
 
-# Generate statistics
+# Count IPs address and HTTP methods
 function generate_statistics {
     local file=$1
-
     echo "Requests per IP address:"
-    awk -v ip_filter="$ip_filter" '{ if (!ip_filter || $1 == ip_filter) { print $1 } }' "$file" | sort | uniq -c | sort -nr
+    awk '{print $1}' "$file" | sort | uniq -c | sort -nr
+    echo "Requests per HTTP methods:"
+    awk '{print $6}' "$file" | sort | uniq -c | sort -nr
+}
 
-    echo "Requests per date range:"
-    if [[ ! -z "$date_filter" ]]; then
-        IFS=',' read -ra date_range <<< "$date_filter"
-        start_date=$(date -d"${date_range[0]}" +%s)
-        end_date=$(date -d"${date_range[1]}" +%s)
-    fi
-    awk -v start_date="$start_date" -v end_date="$end_date" -F'[][]' '{ gsub(/:/, "", $2); ts = mktime(gensub(/[^0-9]+/, " ", "g", $2)); if (!start_date || !end_date || (ts >= start_date && ts <= end_date)) { print $2 } }' "$file" | sort | uniq -c | sort -nr
+function summarize_data_transferred {
+  local file=$1
 
-    echo "Requests per HTTP method:"
-    awk -v method_filter="$method_filter" '{ if (!method_filter || $6 == method_filter) { print $6 } }' "$file" | sort | uniq -c | sort -nr
+  echo "Data transferred summary:"
+  total_data=$(awk '{ sum += $10 } END { print sum }' "$file")
+  echo "    Total data transferred: $total_data"
 
-    echo "Requests per response code:"
-    awk -v code_filter="$code_filter" '{ if (!code_filter || $9 == code_filter) { print $9 } }' "$file" | sort | uniq -c | sort -nr
+  num_ips=$(awk '{ ip[$1]++ } END { print length(ip) }' "$file")
+  average_data=$(echo "scale=2; $total_data / $num_ips" | bc)
+  echo "    Average data transferred per IP: $average_data"
+
+  echo "    Data transferred per IP address:"
+  awk '{ data[$1] += $10 } END { for (i in data) print data[i], i }' "$file"
 }
 
 # Read files
@@ -155,4 +158,5 @@ for file in "${input_files[@]}"; do
 
     parse_file "$file"
     generate_statistics "$file"
+    summarize_data_transferred "$file"
 done
