@@ -1,22 +1,27 @@
 #!/usr/bin/env bash
 
 usage() {
-  echo "Usage: $0 [-i input_files] [-o output_format] [-f filter] [-s sort_by]"
+  echo "Usage: $0 [-i input_files] [-o output_format] [-s sort_by] [-f ip_filter] [-d date_filter] [-m method_filter] [-c code_filter]"
   echo "  -i input_files: Comma-separated list of input files to process"
   echo "  -o output_format: Output format (plain, csv, json)"
-  echo "  -f filter: Filter records using a pattern"
   echo "  -s sort_by: Sort output by a column (date, ip, method, size, status)"
-  echo "  -t threshold: Filter records by a threshold"
-  echo "Example: $0 -i input.log -o plain -f 200 -s ip"
+  echo "  -f ip_filter: Filter records by IP address"
+  echo "  -d date_filter: Filter records by date range, format: start_date,end_date (e.g., '01/Jan/2021,31/Dec/2021')"
+  echo "  -m method_filter: Filter records by HTTP method (e.g., GET, POST)"
+  echo "  -c code_filter: Filter records by response code (e.g., 200, 404)"
+  echo "Example: $0 -i input.log -o plain -f 192.168.1.1 -d '01/Jan/2021,31/Dec/2021' -m GET -c 200"
 }
+
 # Parse command-line arguments
-while getopts "i:o:f:s:" opt; do
+while getopts "i:o:s:f:d:m:c:" opt; do
   case $opt in
     i) input_files+=("$OPTARG");;
     o) output_format="$OPTARG";;
-    f) filter="$OPTARG";;
     s) sort_by="$OPTARG";;
-    t) threshold="$OPTARG";;
+    f) ip_filter="$OPTARG";;
+    d) date_filter="$OPTARG";;
+    m) method_filter="$OPTARG";;
+    c) code_filter="$OPTARG";;
     \?) usage; exit 1;;
   esac
 done
@@ -34,7 +39,7 @@ function parse_file {
 
     while IFS= read -r line
     do
-    IFS=' ' read -ra fields <<< "$line"
+        IFS=' ' read -ra fields <<< "$line"
         local ip="${fields[0]}"
         local date="${fields[3]} ${fields[4]}"
         local method="${fields[5]}"
@@ -47,6 +52,31 @@ function parse_file {
             agent+="$i "
         done
 
+        # Apply filters
+        if [[ ! -z "$ip_filter" && "$ip" != "$ip_filter" ]]; then
+            continue
+        fi
+
+        if [[ ! -z "$date_filter" ]]; then
+            IFS=',' read -ra date_range <<< "$date_filter"
+            start_date=$(date -d"${date_range[0]}" +%s)
+            end_date=$(date -d"${date_range[1]}" +%s)
+            log_date=$(date -d"${date//[/]}" +%s)
+
+            if (( log_date < start_date || log_date > end_date )); then
+                continue
+            fi
+        fi
+
+        if [[ ! -z "$method_filter" && "$method" != "$method_filter" ]]; then
+            continue
+        fi
+
+        if [[ ! -z "$code_filter" && "$status" != "$code_filter" ]]; then
+            continue
+        fi
+
+        # Output the filtered results
         echo "IP: $ip"
         echo "    Date: $date"
         echo "    HTTP method: $method"
@@ -56,17 +86,6 @@ function parse_file {
         echo "    Referer: $referer"
         echo "    Agent: $agent"
     done < "$file"
-}
-
-
-# Count IPs address, HTTP methods, response sizes, status codes, timestamps,
-# and URI requests
-function generate_statistics {
-    file=$1
-    echo "Requests per IP address:"
-    awk '{print $1}' "$file" | sort | uniq -c | sort -nr
-    echo "Requests per HTTP methods:"
-    awk '{print $6}' "$file" | sort | uniq -c | sort -nr
 }
 
 # Read files
@@ -87,5 +106,4 @@ for file in "${input_files[@]}"; do
     echo "Log file: $file"
 
     parse_file "$file"
-    generate_statistics "$file"
 done
