@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 usage() {
-  echo "Usage: $0 [-i input_files] [-o output_format] [-s sort_by] [-f ip_filter] [-d date_filter] [-m method_filter] [-c code_filter] [-p pattern] [-t threshold]"
+  echo "Usage: $0 [-i input_files] [-o output_format] [-s sort_by] [-f ip_filter] [-d date_filter] [-m method_filter] [-c code_filter] [-p pattern] [-t threshold] [-v]"
   echo "  -i input_files: Comma-separated list of input files to process"
   echo "  -o output_format: Output format (plain, csv, json)"
   echo "  -s sort_by: Sort output by a column (date, ip, method, size, status)"
@@ -11,6 +11,7 @@ usage() {
   echo "  -c code_filter: Filter records by response code (e.g., 200, 404)"
   echo "  -p pattern: Search for specific string or pattern in the log file"
   echo "  -t threshold: Display only results meeting or exceeding the threshold (response size)"
+  echo "  -v: Visualize the results in a bar chart"
   echo "Example: $0 -i input.log -o plain -f 192.168.1.1 -d '01/Jan/2021,31/Dec/2021' -m GET -c 200 -p 'example.com' -t 1024"
 }
 
@@ -26,6 +27,7 @@ while getopts "i:o:s:f:d:m:c:p:" opt; do
     c) code_filter="$OPTARG";;
     p) pattern="$OPTARG";;
     t) threshold="$OPTARG";;
+    v) visualize=true;;
     \?) usage; exit 1;;
   esac
 done
@@ -157,6 +159,32 @@ function summarize_data_transferred {
   awk '{ data[$1] += $10 } END { for (i in data) print data[i], i }' "$file"
 }
 
+function create_bar_chart {
+  local log_data=$(cat "$file")
+  
+  echo "Response Code Distribution (Bar Chart)"
+  echo "--------------------------------------"
+  
+  echo "$log_data" | awk '
+    BEGIN {
+      max_bar_length = 50
+    }
+    {
+      response_codes[$9]++
+    }
+    END {
+      for (code in response_codes) {
+        printf "%3s |", code
+        bar_length = int((response_codes[code] / NR) * max_bar_length)
+        for (i = 0; i < bar_length; i++) {
+          printf "%c", 0x2588
+        }
+        printf " %5.1f%%\n", (response_codes[code] / NR) * 100
+      }
+    }
+  '
+}
+
 # Read files
 for file in "${input_files[@]}"; do
   # exist if file does not exist
@@ -177,6 +205,8 @@ for file in "${input_files[@]}"; do
     parse_file "$file"
     generate_statistics "$file"
     summarize_data_transferred "$file"
+    if [[ "$visualize" == true ]]; then
+      create_bar_chart "$file"
 done
 
 # vim:set et sw=2 ts=2:

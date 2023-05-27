@@ -13,6 +13,7 @@ log_analyzer \- a script to filter and process web server log files
 .RB [ \-c\ code_filter ]
 .RB [ \-p\ pattern ]
 .RB [ \-t\ threshold ]
+.RB [ \-v\ ]
 .SH DESCRIPTION
 log_analyzer is a Bash script that filters and processes web server log files based on various input parameters such as IP address, date range, HTTP method, response code, and a specific string or pattern. It also sorts the filtered results, provides some summary statistics for each log file, and displays only results meeting or exceeding a specified threshold (response size).
 .SH OPTIONS
@@ -43,5 +44,7 @@ Search for specific string or pattern in the log file
 .TP
 .B \-t
 Display only results meeting or exceeding the threshold (response size)
+.B \-v
+Visualize the results in a bar chart
 .SH EXAMPLES
 .B log_analyzer -i input.log -o plain -f 192.168.1.1 -d '01/Jan/2021,31/Dec/2021' -m GET -c 200 -p 'example.com' -t 1024
