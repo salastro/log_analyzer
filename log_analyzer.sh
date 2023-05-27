@@ -88,6 +88,28 @@ function parse_file {
     done < "$file"
 }
 
+# Generate statistics
+function generate_statistics {
+    local file=$1
+
+    echo "Requests per IP address:"
+    awk -v ip_filter="$ip_filter" '{ if (!ip_filter || $1 == ip_filter) { print $1 } }' "$file" | sort | uniq -c | sort -nr
+
+    echo "Requests per date range:"
+    if [[ ! -z "$date_filter" ]]; then
+        IFS=',' read -ra date_range <<< "$date_filter"
+        start_date=$(date -d"${date_range[0]}" +%s)
+        end_date=$(date -d"${date_range[1]}" +%s)
+    fi
+    awk -v start_date="$start_date" -v end_date="$end_date" -F'[][]' '{ gsub(/:/, "", $2); ts = mktime(gensub(/[^0-9]+/, " ", "g", $2)); if (!start_date || !end_date || (ts >= start_date && ts <= end_date)) { print $2 } }' "$file" | sort | uniq -c | sort -nr
+
+    echo "Requests per HTTP method:"
+    awk -v method_filter="$method_filter" '{ if (!method_filter || $6 == method_filter) { print $6 } }' "$file" | sort | uniq -c | sort -nr
+
+    echo "Requests per response code:"
+    awk -v code_filter="$code_filter" '{ if (!code_filter || $9 == code_filter) { print $9 } }' "$file" | sort | uniq -c | sort -nr
+}
+
 # Read files
 for file in "${input_files[@]}"; do
     # exist if file does not exist
@@ -106,4 +128,5 @@ for file in "${input_files[@]}"; do
     echo "Log file: $file"
 
     parse_file "$file"
+    generate_statistics "$file"
 done
